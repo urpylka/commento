@@ -34,6 +34,7 @@ func githubGetPrimaryEmail(accessToken string) (string, error) {
 	user := []map[string]interface{}{}
 	if err := json.Unmarshal(contents, &user); err != nil {
 		logger.Errorf("error unmarshaling github user: %v", err)
+		logger.Errorf("resp: %v", contents)
 		return "", errorInternal
 	}
 
