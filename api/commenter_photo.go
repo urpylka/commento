@@ -5,7 +5,7 @@ import (
 	"image/jpeg"
 	"io"
 	"net/http"
-	"strings"
+	"regexp"
 
 	"github.com/disintegration/imaging"
 )
@@ -19,11 +19,8 @@ func commenterPhotoHandler(w http.ResponseWriter, r *http.Request) {
 
 	url := c.Photo
 	if c.Provider == "google" {
-		if strings.HasSuffix(url, "photo.jpg") {
-			url += "?sz=38"
-		} else {
-			url += "=s38"
-		}
+		re := regexp.MustCompile(`=.+-c$`)
+		url = re.ReplaceAllString(url, "=s38-c")
 	} else if c.Provider == "github" {
 		url += "&s=38"
 	} else if c.Provider == "gitlab" {
