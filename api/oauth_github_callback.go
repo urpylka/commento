@@ -9,7 +9,21 @@ import (
 )
 
 func githubGetPrimaryEmail(accessToken string) (string, error) {
-	resp, err := http.Get("https://api.github.com/user/emails?access_token=" + accessToken)
+
+	client := &http.Client{}
+	request, err := http.NewRequest("GET", "https://api.github.com/user/emails", nil)
+
+	if err != nil {
+		logger.Errorf("error in getting email: %v", err)
+	}
+
+	request.Header.Set("Authorization", "token " + accessToken)
+	resp, err := client.Do(request)
+
+	if err != nil {
+		logger.Errorf("error in getting email: %v", err)
+	}
+
 	defer resp.Body.Close()
 
 	contents, err := ioutil.ReadAll(resp.Body)
@@ -56,7 +70,16 @@ func githubCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := http.Get("https://api.github.com/user?access_token=" + token.AccessToken)
+	client := &http.Client{}
+	request, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+
+	if err != nil {
+		logger.Errorf("error in callback handler: %v", err)
+	}
+
+	request.Header.Set("Authorization", "token " + token.AccessToken)
+	resp, err := client.Do(request)
+
 	if err != nil {
 		fmt.Fprintf(w, "Error: %s", err.Error())
 		return
