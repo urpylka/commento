@@ -7,6 +7,7 @@ import (
 	"net/smtp"
 	"os"
 	tt "text/template"
+    "crypto/tls"
 )
 
 type emailNotificationPlugs struct {
@@ -55,11 +56,65 @@ Subject: {{.Subject}}
 		return err
 	}
 
-	err = smtp.SendMail(os.Getenv("SMTP_HOST")+":"+os.Getenv("SMTP_PORT"), smtpAuth, os.Getenv("SMTP_FROM_ADDRESS"), []string{to}, concat(header, body))
-	if err != nil {
-		logger.Errorf("cannot send email notification: %v", err)
-		return errorCannotSendEmail
+	// TLS config
+	tlsconfig := &tls.Config {
+		InsecureSkipVerify: true,
+		ServerName: os.Getenv("SMTP_HOST"),
 	}
 
+	// Here is the key, you need to call tls.Dial instead of smtp.Dial
+    // for smtp servers running on 465 that require an ssl connection
+    // from the very beginning (no starttls)
+    conn, err := tls.Dial("tcp", os.Getenv("SMTP_HOST") + ":" + os.Getenv("SMTP_PORT"), tlsconfig)
+    if err != nil {
+        logger.Errorf("cannot send email notification: %v", err)
+		return errorCannotSendEmail
+    }
+
+    c, err := smtp.NewClient(conn, os.Getenv("SMTP_HOST"))
+    if err != nil {
+        logger.Errorf("cannot send email notification: %v", err)
+		return errorCannotSendEmail
+    }
+
+    // Auth
+    if err = c.Auth(smtpAuth); err != nil {
+        logger.Errorf("cannot send email notification: %v", err)
+		return errorCannotSendEmail
+    }
+
+    // To && From
+    if err = c.Mail(os.Getenv("SMTP_FROM_ADDRESS")); err != nil {
+        logger.Errorf("cannot send email notification: %v", err)
+		return errorCannotSendEmail
+    }
+
+	for _, addr := range []string{to} {
+		if err = c.Rcpt(addr); err != nil {
+			logger.Errorf("cannot send email notification: %v", err)
+			return errorCannotSendEmail
+		}
+	}
+
+    // Data
+    w, err := c.Data()
+    if err != nil {
+        logger.Errorf("cannot send email notification: %v", err)
+		return errorCannotSendEmail
+    }
+
+    _, err = w.Write(concat(header, body))
+    if err != nil {
+        logger.Errorf("cannot send email notification: %v", err)
+		return errorCannotSendEmail
+    }
+
+    err = w.Close()
+    if err != nil {
+        logger.Errorf("cannot send email notification: %v", err)
+		return errorCannotSendEmail
+    }
+
+    c.Quit()
 	return nil
 }
