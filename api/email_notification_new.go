@@ -1,13 +1,13 @@
 package main
 
-import ()
-
 func emailNotificationModerator(d domain, path string, title string, commenterHex string, commentHex string, html string, state string) {
 	if d.EmailNotificationPolicy == "none" {
+		logger.Infof("Don't send email: 'EmailNotificationPolicy' == 'none'")
 		return
 	}
 
 	if d.EmailNotificationPolicy == "pending-moderation" && state == "approved" {
+		logger.Infof("Don't send email: 'EmailNotificationPolicy' == 'moderation' and 'state' == 'approved'")
 		return
 	}
 
@@ -30,20 +30,24 @@ func emailNotificationModerator(d domain, path string, title string, commenterHe
 	if state != "approved" {
 		kind = "pending-moderation"
 	}
+	logger.Infof("kind is '%v'", kind)
 
 	for _, m := range d.Moderators {
 		// Do not email the commenting moderator their own comment.
 		if commenterHex != "anonymous" && m.Email == commenterEmail {
+			logger.Infof("Don't send email: 'commenterHex' != 'anonymous' and 'm.Email' == 'commenterEmail'")
 			continue
 		}
 
 		e, err := emailGet(m.Email)
 		if err != nil {
+			logger.Infof("Don't send email: No such email – %v", m.Email)
 			// No such email.
 			continue
 		}
 
 		if !e.SendModeratorNotifications {
+			logger.Infof("Don't send email: Not SendModeratorNotifications")
 			continue
 		}
 
@@ -57,6 +61,7 @@ func emailNotificationModerator(d domain, path string, title string, commenterHe
 		if err := row.Scan(&name); err != nil {
 			// The moderator has probably not created a commenter account.
 			// We should only send emails to people who signed up, so skip.
+			logger.Infof("Don't send email: Moderator doesn't have commenter account")
 			continue
 		}
 
